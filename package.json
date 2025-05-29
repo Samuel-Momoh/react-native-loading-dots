@@ -9,9 +9,5 @@
   "author": "Alex Casillas",
   "license": "MIT",
   "main": "src/react-native-loading-dots.js",
-  "types": "src/react-native-loading-dots.d.ts",
-  "peerDependencies": {
-    "react": "^18.3.1",
-    "react-native": "^0.75.3"
-  }
+  "types": "src/react-native-loading-dots.d.ts"
 }
