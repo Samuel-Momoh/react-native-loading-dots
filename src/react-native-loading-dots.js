@@ -3,17 +3,6 @@ import { StyleSheet, Animated, Easing } from "react-native";
 
 const defaultColors = ["#4dabf7", "#3bc9db", "#38d9a9", "#69db7c"];
 
-/**
- * React Component that creates a smooth loading animation with dots
- * or custom components
- * @param {number} dots
- * @param {string[]} colors
- * @param {number} size
- * @param {number} bounceHeight
- * @param {number} borderRadius
- * @param {React.ReactNode[]} components
- * @returns React.JSX.Element
- */
 function LoadingDots({
   dots = 4,
   colors = defaultColors,
@@ -24,101 +13,98 @@ function LoadingDots({
 }) {
   const [animations, setAnimations] = useState([]);
   const [reverse, setReverse] = useState(false);
-
   const opacity = useRef(new Animated.Value(0)).current;
+  const reverseRef = useRef(reverse);
 
+  // create animated values once
   useEffect(() => {
-    const dotAnimations = [];
-    let animationsAmount =
-      !!components && Array.isArray(components) ? components.length : dots;
-    for (let i = 0; i < animationsAmount; i++) {
-      dotAnimations.push(new Animated.Value(0));
-    }
-    setAnimations(dotAnimations);
-  }, []);
+    const count = components?.length ?? dots;
+    setAnimations(Array.from({ length: count }, () => new Animated.Value(0)));
+  }, [dots, components]);
 
+  // fade in
   useEffect(() => {
-    if (animations.length === 0) return;
-    loadingAnimation(animations, reverse);
-    appearAnimation();
-  }, [animations]);
-
-  function appearAnimation() {
     Animated.timing(opacity, {
       toValue: 1,
       easing: Easing.ease,
       useNativeDriver: true,
+      duration: 300,
     }).start();
-  }
+  }, []);
 
-  function floatAnimation(node, reverseY, delay) {
-    const floatSequence = Animated.sequence([
+  const floatAnimation = (node, reverseY, delay) =>
+    Animated.sequence([
       Animated.timing(node, {
         toValue: reverseY ? bounceHeight : -bounceHeight,
         easing: Easing.bezier(0.41, -0.15, 0.56, 1.21),
         delay,
         useNativeDriver: true,
+        duration: 300,
       }),
       Animated.timing(node, {
         toValue: reverseY ? -bounceHeight : bounceHeight,
         easing: Easing.bezier(0.41, -0.15, 0.56, 1.21),
         delay,
         useNativeDriver: true,
+        duration: 300,
       }),
       Animated.timing(node, {
         toValue: 0,
         delay,
         useNativeDriver: true,
+        duration: 300,
       }),
     ]);
-    return floatSequence;
-  }
-
-  function loadingAnimation(nodes, reverseY) {
-    Animated.parallel(
-      nodes.map((node, index) => floatAnimation(node, reverseY, index * 100))
-    ).start(() => {
-      setReverse(!reverse);
-    });
-  }
 
   useEffect(() => {
     if (animations.length === 0) return;
-    loadingAnimation(animations, reverse);
-  }, [reverse, animations]);
+
+    const runAnimation = () => {
+      Animated.parallel(
+        animations.map((node, i) =>
+          floatAnimation(node, reverseRef.current, i * 100)
+        )
+      ).start(() => {
+        // ⚡ defer state update to avoid React 19 "useInsertionEffect" warning
+        setTimeout(() => {
+          reverseRef.current = !reverseRef.current;
+          setReverse(reverseRef.current);
+        }, 0);
+      });
+    };
+
+    runAnimation();
+  }, [animations, reverse]);
 
   return (
     <Animated.View style={[styles.loading, { opacity }]}>
-      {animations.map((animation, index) =>
-        components ? (
-          <Animated.View
-            key={`loading-anim-${index}`}
-            style={[{ transform: [{ translateY: animation }] }]}
-          >
-            {components[index]}
+      {animations.map((anim, i) => {
+        const style = [{ transform: [{ translateY: anim }] }];
+        return components ? (
+          <Animated.View key={i} style={style}>
+            {components[i]}
           </Animated.View>
         ) : (
           <Animated.View
-            key={`loading-anim-${index}`}
+            key={i}
             style={[
               {
                 width: size,
                 height: size,
                 borderRadius: borderRadius || size / 2,
+                backgroundColor: colors[i] || "#4dabf7",
               },
-              { backgroundColor: colors[index] || "#4dabf7" },
-              { transform: [{ translateY: animation }] },
+              ...style,
             ]}
           />
-        )
-      )}
+        );
+      })}
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   loading: {
-    display: "flex",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
